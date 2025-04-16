@@ -1,8 +1,7 @@
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
+import java.util.Stack;
 import javax.swing.*;
 
 public class Calculator extends JFrame implements ActionListener {
@@ -253,9 +252,68 @@ public class Calculator extends JFrame implements ActionListener {
         }
     }
     private double evaluateExpression(String expression) throws Exception {
-        ScriptEngineManager manager = new ScriptEngineManager();
-        ScriptEngine engine = manager.getEngineByName("JavaScript");
-        return (double) engine.eval(expression);
+        // Remove spaces from the expression
+        expression = expression.replaceAll("\\s+", "");
+
+        // Use two stacks: one for numbers and one for operators
+        Stack<Double> numbers = new Stack<>();
+        Stack<Character> operators = new Stack<>();
+
+        for (int i = 0; i < expression.length(); i++) {
+            char c = expression.charAt(i);
+
+            // If the character is a digit, parse the full number
+            if (Character.isDigit(c) || c == '.') {
+                StringBuilder sb = new StringBuilder();
+                while (i < expression.length() && (Character.isDigit(expression.charAt(i)) || expression.charAt(i) == '.')) {
+                    sb.append(expression.charAt(i));
+                    i++;
+                }
+                i--; // Adjust for the loop increment
+                numbers.push(Double.parseDouble(sb.toString()));
+            } else if (c == '(') {
+                operators.push(c);
+            } else if (c == ')') {
+                while (!operators.isEmpty() && operators.peek() != '(') {
+                    numbers.push(applyOperation(operators.pop(), numbers.pop(), numbers.pop()));
+                }
+                operators.pop(); // Remove '('
+            } else if (isOperator(c)) {
+                while (!operators.isEmpty() && precedence(c) <= precedence(operators.peek())) {
+                    numbers.push(applyOperation(operators.pop(), numbers.pop(), numbers.pop()));
+                }
+                operators.push(c);
+            }
+        }
+
+        // Apply remaining operations
+        while (!operators.isEmpty()) {
+            numbers.push(applyOperation(operators.pop(), numbers.pop(), numbers.pop()));
+        }
+
+        return numbers.pop();
+    }
+
+    private boolean isOperator(char c) {
+        return c == '+' || c == '-' || c == '*' || c == '/';
+    }
+
+    private int precedence(char operator) {
+        if (operator == '+' || operator == '-') return 1;
+        if (operator == '*' || operator == '/') return 2;
+        return -1;
+    }
+
+    private double applyOperation(char operator, double b, double a) throws Exception {
+        switch (operator) {
+            case '+': return a + b;
+            case '-': return a - b;
+            case '*': return a * b;
+            case '/': 
+                if (b == 0) throw new ArithmeticException("Division by zero");
+                return a / b;
+            default: throw new Exception("Invalid operator");
+        }
     }
 
     public static void main(String[] args) throws Exception {
